@@ -18,12 +18,9 @@
     "@anthropic-ai/sdk": "^0.70.1",
     "@kapso/whatsapp-cloud-api": "^0.1.1",
     "encore.dev": "^1.51.10",
-    "zod": "^4.1.12"
+    "zod": "^3.23.8"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.13.0"
-  },
-  "overrides": {
-    "zod": "^4.1.12"
   }
 }

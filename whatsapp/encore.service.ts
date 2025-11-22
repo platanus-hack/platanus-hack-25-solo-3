@@ -5,4 +5,3 @@ import { Service } from "encore.dev/service";
 
 // The whatsapp service handles WhatsApp bot interactions for PlanEat.
 export default new Service("whatsapp");
-

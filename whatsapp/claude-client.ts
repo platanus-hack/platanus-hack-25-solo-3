@@ -4,9 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./secrets";
 import { sendTextMessage, sendInteractiveMessage } from "./whatsapp-client";
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-const db = new SQLDatabase("planeat", { migrations: "./migrations" });
+import { db } from "./db";
 
 // Definición de tools para Claude
 const tools: Anthropic.Tool[] = [

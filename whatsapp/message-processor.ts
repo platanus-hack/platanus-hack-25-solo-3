@@ -1,6 +1,10 @@
 // Procesador principal de mensajes de WhatsApp
 import { KapsoWebhookPayload } from "./types";
+import { processWithAgentSDK } from "./claude-agent-client";
 import { processWithClaude } from "./claude-client";
+
+// Flag para cambiar entre Agent SDK y API directa
+const USE_AGENT_SDK = true;
 
 export async function processMessage(webhookData: KapsoWebhookPayload) {
   console.log("🔄 MESSAGE PROCESSOR STARTED");
@@ -23,13 +27,26 @@ export async function processMessage(webhookData: KapsoWebhookPayload) {
   }
 
   try {
-    console.log("🤖 Calling Claude...");
-    // Procesar con Claude
-    await processWithClaude(messageText, from);
+    if (USE_AGENT_SDK) {
+      console.log("🤖 Using Claude Agent SDK...");
+      await processWithAgentSDK(messageText, from);
+    } else {
+      console.log("🤖 Using Claude API directly...");
+      await processWithClaude(messageText, from);
+    }
     console.log(`✅ Message processed successfully for ${from}`);
   } catch (error) {
     console.error("❌ Error processing message:", error);
-    // No enviamos mensaje de error para evitar loops
-    // En producción, loguear a servicio de monitoreo
+    
+    // Fallback: Si Agent SDK falla, intentar con API directa
+    if (USE_AGENT_SDK) {
+      console.log("⚠️  Agent SDK failed, falling back to direct API...");
+      try {
+        await processWithClaude(messageText, from);
+        console.log(`✅ Fallback processing successful for ${from}`);
+      } catch (fallbackError) {
+        console.error("❌ Fallback also failed:", fallbackError);
+      }
+    }
   }
 }
