@@ -199,8 +199,15 @@
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber.value);
 
+      // API URL dinámica según el ambiente
+      const API_URL =
+        import.meta.env.VITE_API_URL ||
+        (import.meta.env.MODE === "production"
+          ? "https://api.planeat.life"
+          : "http://127.0.0.1:4000");
+
       // Llamar al endpoint de Encore para iniciar conversación
-      const response = await fetch("http://127.0.0.1:4000/start", {
+      const response = await fetch(`${API_URL}/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

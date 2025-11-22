@@ -1,3 +1,7 @@
 dist/
 node_modules/
 
+# Environment files (keep .env.example, .env.production, .env.development)
+.env.local
+.env.*.local
+
