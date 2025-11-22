@@ -9,7 +9,8 @@
     "test": "vitest",
     "landing:dev": "cd landing && vite",
     "landing:build": "cd landing && vite build",
-    "landing:preview": "cd landing && vite preview"
+    "landing:preview": "cd landing && vite preview",
+    "postinstall": "npm run landing:build || true"
   },
   "devDependencies": {
     "@types/node": "^20.5.7",
