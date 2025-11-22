@@ -8,7 +8,8 @@
   "scripts": {
     "test": "vitest --run --passWithNoTests",
     "landing:dev": "cd landing && vite",
-    "landing:build": "cd landing && vite build",
+    "landing:inject-secrets": "node landing/scripts/inject-secrets.js",
+    "landing:build": "npm run landing:inject-secrets && cd landing && vite build",
     "landing:preview": "cd landing && vite preview",
     "postinstall": "npm run landing:build || true"
   },
