@@ -8,5 +8,13 @@
 			"https://planeat.life",
 			"http://localhost:*"
 		]
+	},
+	"infra": {
+		"postgres": {
+			"provider": "neon",
+			"neon": {
+				"org_id": "org-twilight-glitter-37431007"
+			}
+		}
 	}
 }
