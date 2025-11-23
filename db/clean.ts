@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { pool } from "./connection.js";
+import { pool } from "./connection";
 
 async function cleanDatabase() {
   const client = await pool.connect();

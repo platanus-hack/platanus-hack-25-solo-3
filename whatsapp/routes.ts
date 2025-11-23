@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
-import { processMessage } from "./message-processor.js";
-import { KapsoWebhookPayload } from "./types.js";
-import { KAPSO_PHONE_NUMBER_ID } from "./secrets.js";
+import { processMessage } from "./message-processor";
+import { KapsoWebhookPayload } from "./types";
+import { KAPSO_PHONE_NUMBER_ID } from "./secrets";
 
 const router = Router();
 

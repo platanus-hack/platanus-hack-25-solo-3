@@ -4,12 +4,12 @@
  */
 
 import { z } from "zod";
-import { frestClient } from "../clients/frest-client.js";
+import { frestClient } from "../clients/frest-client";
 import {
   FrestApiException,
   TipoPedido,
   FormaPago,
-} from "../clients/frest-types.js";
+} from "../clients/frest-types";
 
 export const frestCrearPedidoTool = {
   name: "frest_crear_pedido",

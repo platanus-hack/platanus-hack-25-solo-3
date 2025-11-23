@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { cleanDatabase } from "./clean.js";
-import { runMigrations } from "./migrate.js";
+import { cleanDatabase } from "./clean";
+import { runMigrations } from "./migrate";
 
 async function resetDatabase() {
   try {

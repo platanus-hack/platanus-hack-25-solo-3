@@ -1,10 +1,10 @@
-import "./config/env.js";
+import "./config/env";
 import express, { Request, Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
-import { pool } from "./db/connection.js";
-import whatsappRouter from "./whatsapp/routes.js";
+import { pool } from "./db/connection";
+import whatsappRouter from "./whatsapp/routes";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

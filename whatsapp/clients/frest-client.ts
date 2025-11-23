@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from "axios";
-import { FREST_API_URL, FREST_API_KEY } from "../secrets.js";
+import { FREST_API_URL, FREST_API_KEY } from "../secrets";
 import {
   FrestApiResponse,
   FrestApiException,
@@ -19,7 +19,7 @@ import {
   CrearPedidoRequest,
   CrearPedidoResponse,
   ConsultarEstadoPedidoResponse,
-} from "./frest-types.js";
+} from "./frest-types";
 
 // ============================================================================
 // CONFIGURACIÓN

@@ -4,8 +4,8 @@
  */
 
 import { z } from "zod";
-import { frestClient } from "../clients/frest-client.js";
-import { FrestApiException } from "../clients/frest-types.js";
+import { frestClient } from "../clients/frest-client";
+import { FrestApiException } from "../clients/frest-types";
 
 export const frestConsultarProductosTool = {
   name: "frest_consultar_productos",

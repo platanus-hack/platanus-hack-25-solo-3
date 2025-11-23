@@ -1,2 +1,2 @@
 // Database connection for WhatsApp service
-export { db } from "../db/connection.js";
+export { db } from "../db/connection";
