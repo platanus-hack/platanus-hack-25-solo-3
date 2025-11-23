@@ -1,8 +1,8 @@
 // Procesador principal de mensajes de WhatsApp
-import { KapsoWebhookPayload } from "./types";
-import { processWithAgentSDK } from "./claude-agent-client";
-import { processWithClaude } from "./claude-client";
-import { markMessageAsRead } from "./whatsapp-client";
+import { KapsoWebhookPayload } from "./types.js";
+import { processWithAgentSDK } from "./claude-agent-client.js";
+import { processWithClaude } from "./claude-client.js";
+import { markMessageAsRead } from "./whatsapp-client.js";
 
 // Flag para cambiar entre Agent SDK y API directa
 // TEMPORALMENTE DESACTIVADO - SDK tarda 130s (demasiado lento)
