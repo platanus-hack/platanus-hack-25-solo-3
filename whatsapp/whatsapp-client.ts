@@ -3,6 +3,7 @@
 
 import { WhatsAppClient } from "@kapso/whatsapp-cloud-api";
 import { KAPSO_API_KEY, KAPSO_PHONE_NUMBER_ID } from "./secrets";
+import fetch from "node-fetch";
 
 let whatsappClient: WhatsAppClient | null = null;
 
@@ -106,5 +107,72 @@ export async function sendReaction(
       `⚠️  Failed to send reaction ${emoji} (non-blocking):`,
       error.message
     );
+  }
+}
+
+// Helper para enviar imagen por WhatsApp
+export async function sendImageMessage(
+  to: string,
+  imageBuffer: Buffer,
+  caption?: string
+) {
+  console.log(`📸 Sending image to ${to} (${imageBuffer.length} bytes)`);
+  
+  const client = getWhatsAppClient();
+  try {
+    // Paso 1: Subir la imagen a WhatsApp Media API
+    console.log("📤 Uploading image to WhatsApp Media API...");
+    
+    // Crear un FormData con el buffer de imagen
+    const FormData = (await import('form-data')).default;
+    const form = new FormData();
+    form.append('file', imageBuffer, {
+      filename: 'recipe-image.png',
+      contentType: 'image/png',
+    });
+    form.append('type', 'image/png');
+    form.append('messaging_product', 'whatsapp');
+    
+    // Subir usando fetch directamente a la API de WhatsApp
+    const uploadResponse = await fetch(
+      `https://app.kapso.ai/api/meta/${KAPSO_PHONE_NUMBER_ID()}/media`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${KAPSO_API_KEY()}`,
+          ...form.getHeaders(),
+        },
+        body: form,
+      }
+    );
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Media upload failed: ${uploadResponse.status} - ${errorText}`);
+    }
+    
+    const uploadResult = await uploadResponse.json() as { id: string };
+    const mediaId = uploadResult.id;
+    
+    console.log(`✅ Image uploaded successfully. Media ID: ${mediaId}`);
+    
+    // Paso 2: Enviar mensaje con el media ID
+    console.log("📨 Sending WhatsApp message with media ID...");
+    
+    const response = await client.messages.sendImage({
+      phoneNumberId: KAPSO_PHONE_NUMBER_ID(),
+      to,
+      image: {
+        id: mediaId,
+        caption,
+      },
+    });
+    
+    console.log(`✅ Image sent successfully to ${to}`);
+    return response;
+    
+  } catch (error: any) {
+    console.error(`❌ Failed to send image to ${to}:`, error.message);
+    throw new Error(`Failed to send image: ${error.message}`);
   }
 }

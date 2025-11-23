@@ -264,3 +264,4 @@ export type FrestApiMethod =
   | "crearPedido"
   | "consultarEstadoPedido";
 
+

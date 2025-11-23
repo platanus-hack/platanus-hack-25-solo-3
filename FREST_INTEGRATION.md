@@ -388,3 +388,4 @@ FREST_API_KEY=produccion_key_aqui
 **Versión:** 1.0.0  
 **Estado:** ✅ Producción
 
+

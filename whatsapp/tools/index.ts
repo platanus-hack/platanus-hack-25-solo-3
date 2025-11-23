@@ -5,6 +5,7 @@ export { createHouseholdTool } from "./create-household";
 export { addHouseholdMembersTool } from "./add-household-members";
 export { saveConversationStateTool } from "./save-conversation-state";
 export { sendReactionTool } from "./send-reaction";
+export { generateRecipeImageTool } from "./generate-recipe-image";
 
 // Export Frest API tools
 export { frestBuscarUsuarioTool } from "./frest-buscar-usuario";

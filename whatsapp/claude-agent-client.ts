@@ -9,6 +9,7 @@ import {
   addHouseholdMembersTool,
   saveConversationStateTool,
   sendReactionTool,
+  generateRecipeImageTool,
 } from "./tools";
 import { PLANEAT_AGENTS, routerPrompt } from "./agents";
 
@@ -31,6 +32,7 @@ const planeatServer = createSdkMcpServer({
     addHouseholdMembersTool,
     saveConversationStateTool,
     sendReactionTool,
+    generateRecipeImageTool,
   ],
 });
 

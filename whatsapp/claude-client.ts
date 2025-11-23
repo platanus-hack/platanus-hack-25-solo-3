@@ -18,6 +18,9 @@ import { executeFrestConsultarProductos } from "./tools/frest-consultar-producto
 import { executeFrestCrearPedido } from "./tools/frest-crear-pedido";
 import { executeFrestConsultarEstadoPedido } from "./tools/frest-consultar-estado-pedido";
 
+// Importar función de generación de imágenes
+import { generateRecipeImage } from "./tools/generate-recipe-image";
+
 // Definición de tools para Claude
 const tools: Anthropic.Tool[] = [
   {
@@ -156,16 +159,52 @@ const tools: Anthropic.Tool[] = [
       required: ["message_id", "emoji"],
     },
   },
+  {
+    name: "generate_recipe_image",
+    description:
+      "Genera una imagen de una receta con foto de la comida arriba y texto de la receta debajo. " +
+      "La imagen se envía automáticamente al usuario por WhatsApp. " +
+      "Usa este tool cuando: " +
+      "1. El usuario pide el menú semanal (generar imágenes para cada día) " +
+      "2. El usuario solicita una receta específica " +
+      "3. Quieres enviar una receta visualmente atractiva",
+    input_schema: {
+      type: "object",
+      properties: {
+        phone_number: {
+          type: "string",
+          description: "Número de teléfono del usuario (formato: +56912345678)",
+        },
+        recipe_name: {
+          type: "string",
+          description: "Nombre de la receta (ej: 'Pollo al Horno con Papas')",
+        },
+        recipe_text: {
+          type: "string",
+          description:
+            "Texto completo de la receta incluyendo ingredientes e instrucciones de preparación. " +
+            "Debe estar formateado con secciones 'Ingredientes:' e 'Instrucciones:' o 'Preparación:'",
+        },
+        context: {
+          type: "string",
+          description: "Contexto adicional sobre el plato para mejorar la generación de la imagen (opcional)",
+        },
+      },
+      required: ["phone_number", "recipe_name", "recipe_text"],
+    },
+  },
   // Frest API Tools
   {
     name: "frest_buscar_usuario",
-    description: "Busca si existe un usuario registrado en Frest por su número de teléfono. Retorna información completa del usuario incluyendo todas sus direcciones guardadas. Este tool debe ser el PRIMERO en llamarse antes de intentar registrar un usuario.",
+    description:
+      "Busca si existe un usuario registrado en Frest por su número de teléfono. Retorna información completa del usuario incluyendo todas sus direcciones guardadas. Este tool debe ser el PRIMERO en llamarse antes de intentar registrar un usuario.",
     input_schema: {
       type: "object",
       properties: {
         telefono: {
           type: "string",
-          description: "Número de teléfono en formato internacional SIN el símbolo +. Ejemplo: 56995545216",
+          description:
+            "Número de teléfono en formato internacional SIN el símbolo +. Ejemplo: 56995545216",
         },
       },
       required: ["telefono"],
@@ -173,7 +212,8 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "frest_registrar_usuario",
-    description: "Registra un nuevo usuario en Frest sin contraseña. El usuario recibirá un código de verificación por email. Solo usar este tool si frest_buscar_usuario retornó que el usuario NO existe.",
+    description:
+      "Registra un nuevo usuario en Frest sin contraseña. El usuario recibirá un código de verificación por email. Solo usar este tool si frest_buscar_usuario retornó que el usuario NO existe.",
     input_schema: {
       type: "object",
       properties: {
@@ -181,57 +221,102 @@ const tools: Anthropic.Tool[] = [
         paterno: { type: "string", description: "Apellido paterno" },
         materno: { type: "string", description: "Apellido materno (opcional)" },
         email: { type: "string", description: "Email del usuario" },
-        rut: { type: "string", description: "RUT del usuario en formato 12345678-9 (opcional)" },
-        celular: { type: "string", description: "Número de celular con prefijo +56" },
+        rut: {
+          type: "string",
+          description: "RUT del usuario en formato 12345678-9 (opcional)",
+        },
+        celular: {
+          type: "string",
+          description: "Número de celular con prefijo +56",
+        },
       },
       required: ["nombre", "paterno", "email", "celular"],
     },
   },
   {
     name: "frest_crear_direccion",
-    description: "Crea una nueva dirección de despacho para un usuario existente en Frest. Determina automáticamente la zona de despacho según la ubicación.",
+    description:
+      "Crea una nueva dirección de despacho para un usuario existente en Frest. Determina automáticamente la zona de despacho según la ubicación.",
     input_schema: {
       type: "object",
       properties: {
         user_id: { type: "number", description: "ID del usuario en Frest" },
         calle: { type: "string", description: "Nombre de la calle" },
         numero: { type: "string", description: "Número de la dirección" },
-        depto: { type: "string", description: "Número de departamento u oficina (opcional)" },
-        comuna: { type: "string", description: "Comuna (ej: Providencia, Las Condes)" },
-        region: { type: "string", description: "Región (ej: Región Metropolitana)" },
-        coordenadas: { type: "string", description: 'Coordenadas en formato "latitud,longitud" (opcional)' },
-        observaciones: { type: "string", description: "Instrucciones adicionales para el despacho (ej: edificio azul, tocar timbre 402)" },
+        depto: {
+          type: "string",
+          description: "Número de departamento u oficina (opcional)",
+        },
+        comuna: {
+          type: "string",
+          description: "Comuna (ej: Providencia, Las Condes)",
+        },
+        region: {
+          type: "string",
+          description: "Región (ej: Región Metropolitana)",
+        },
+        coordenadas: {
+          type: "string",
+          description: 'Coordenadas en formato "latitud,longitud" (opcional)',
+        },
+        observaciones: {
+          type: "string",
+          description:
+            "Instrucciones adicionales para el despacho (ej: edificio azul, tocar timbre 402)",
+        },
       },
       required: ["user_id", "calle", "numero", "comuna", "region"],
     },
   },
   {
     name: "frest_consultar_productos",
-    description: "Busca productos en el catálogo de Frest por nombre. Retorna precios en tiempo real (ya con ofertas incluidas), stock disponible y sugiere alternativas si no están disponibles. Usa este tool cuando el usuario tiene una lista de compras lista.",
+    description:
+      "Busca productos en el catálogo de Frest por nombre. Retorna precios en tiempo real (ya con ofertas incluidas), stock disponible y sugiere alternativas si no están disponibles. Usa este tool cuando el usuario tiene una lista de compras lista.",
     input_schema: {
       type: "object",
       properties: {
         productos: {
           type: "array",
           items: { type: "string" },
-          description: "Array de nombres de productos a buscar (ej: ['Tomate', 'Lechuga', 'Palta Hass'])",
+          description:
+            "Array de nombres de productos a buscar (ej: ['Tomate', 'Lechuga', 'Palta Hass'])",
         },
-        bodega_id: { type: "number", description: "ID de la bodega/tienda (opcional, default: 1 para Centro de Distribución)" },
+        bodega_id: {
+          type: "number",
+          description:
+            "ID de la bodega/tienda (opcional, default: 1 para Centro de Distribución)",
+        },
       },
       required: ["productos"],
     },
   },
   {
     name: "frest_crear_pedido",
-    description: "Crea un pedido completo en Frest y genera el link de pago. Los precios se calculan automáticamente según las ofertas vigentes. IMPORTANTE: Solo envía producto_id y cantidad en los items, NO incluyas el precio.",
+    description:
+      "Crea un pedido completo en Frest y genera el link de pago. Los precios se calculan automáticamente según las ofertas vigentes. IMPORTANTE: Solo envía producto_id y cantidad en los items, NO incluyas el precio.",
     input_schema: {
       type: "object",
       properties: {
         user_id: { type: "number", description: "ID del usuario en Frest" },
-        direccion_id: { type: "number", description: "ID de la dirección de despacho" },
-        ventana_id: { type: "number", description: "ID de la ventana de despacho (pregunta al usuario cuándo quiere recibir)" },
-        bodega_id: { type: "number", description: "ID de la bodega (default: 1 para Centro de Distribución)" },
-        tipo_pedido_id: { type: "number", description: "1=Despacho a domicilio, 2=Retiro en tienda, 3=Retiro express" },
+        direccion_id: {
+          type: "number",
+          description: "ID de la dirección de despacho",
+        },
+        ventana_id: {
+          type: "number",
+          description:
+            "ID de la ventana de despacho (pregunta al usuario cuándo quiere recibir)",
+        },
+        bodega_id: {
+          type: "number",
+          description:
+            "ID de la bodega (default: 1 para Centro de Distribución)",
+        },
+        tipo_pedido_id: {
+          type: "number",
+          description:
+            "1=Despacho a domicilio, 2=Retiro en tienda, 3=Retiro express",
+        },
         forma_pago: {
           type: "string",
           enum: ["webpay", "fpay", "oneclick", "efectivo"],
@@ -247,17 +332,33 @@ const tools: Anthropic.Tool[] = [
             },
             required: ["producto_id", "cantidad"],
           },
-          description: "Array de productos (solo producto_id y cantidad, NO incluir precio)",
+          description:
+            "Array de productos (solo producto_id y cantidad, NO incluir precio)",
         },
-        observaciones: { type: "string", description: "Instrucciones adicionales para el pedido (opcional)" },
-        codigo_descuento: { type: "string", description: "Código de descuento (opcional)" },
+        observaciones: {
+          type: "string",
+          description: "Instrucciones adicionales para el pedido (opcional)",
+        },
+        codigo_descuento: {
+          type: "string",
+          description: "Código de descuento (opcional)",
+        },
       },
-      required: ["user_id", "direccion_id", "ventana_id", "bodega_id", "tipo_pedido_id", "forma_pago", "items"],
+      required: [
+        "user_id",
+        "direccion_id",
+        "ventana_id",
+        "bodega_id",
+        "tipo_pedido_id",
+        "forma_pago",
+        "items",
+      ],
     },
   },
   {
     name: "frest_consultar_estado_pedido",
-    description: "Consulta el estado actual de un pedido en Frest. Retorna información sobre el estado del pedido, pago y tracking del repartidor si está disponible.",
+    description:
+      "Consulta el estado actual de un pedido en Frest. Retorna información sobre el estado del pedido, pago y tracking del repartidor si está disponible.",
     input_schema: {
       type: "object",
       properties: {
@@ -427,6 +528,18 @@ async function executeTool(
         return JSON.stringify({ success: true, message: "Reacción enviada" });
       }
 
+      case "generate_recipe_image": {
+        const { phone_number, recipe_name, recipe_text, context } = toolInput;
+        console.log(`🎨 Generating recipe image: ${recipe_name} for ${phone_number}`);
+        const result = await generateRecipeImage(
+          phone_number,
+          recipe_name,
+          recipe_text,
+          context
+        );
+        return JSON.stringify(result);
+      }
+
       // Frest API tools
       case "frest_buscar_usuario": {
         return await executeFrestBuscarUsuario(toolInput as any);
@@ -490,9 +603,14 @@ async function routeToAgent(
 
   // 🎯 PRIORIDAD 1: Detectar lista de compras (INCLUSO PARA USUARIOS NUEVOS)
   // Patrones: "necesito X, Y, Z" o menciona varios ingredientes
-  const hasShoppingKeywords = msgLower.match(/necesito|comprar|lista|ingrediente/);
-  const hasIngredients = msgLower.match(/tomate|pollo|carne|pan|leche|arroz|verdura|fruta|queso|huevo|pescado|lechuga|zanahoria/i);
-  const hasMultipleItems = msgLower.split(/,|y/).filter(s => s.trim().length > 3).length >= 3;
+  const hasShoppingKeywords = msgLower.match(
+    /necesito|comprar|lista|ingrediente/
+  );
+  const hasIngredients = msgLower.match(
+    /tomate|pollo|carne|pan|leche|arroz|verdura|fruta|queso|huevo|pescado|lechuga|zanahoria/i
+  );
+  const hasMultipleItems =
+    msgLower.split(/,|y/).filter((s) => s.trim().length > 3).length >= 3;
 
   if (hasShoppingKeywords && hasIngredients) {
     console.log("   → shopping-list (detected keywords + ingredients)");
@@ -511,7 +629,11 @@ async function routeToAgent(
   }
 
   // PRIORIDAD 3: Detectar e-commerce (Frest)
-  if (msgLower.match(/pedido|online|jumbo|lider|unimarc|santa isabel|pedir|frest|comprar online/)) {
+  if (
+    msgLower.match(
+      /pedido|online|jumbo|lider|unimarc|santa isabel|pedir|frest|comprar online/
+    )
+  ) {
     console.log("   → ecommerce");
     return { agent: "ecommerce", context: userContext };
   }
@@ -554,8 +676,54 @@ function getAgentPrompt(agentName: string): string {
 }
 
 // Obtener historial de conversación de la base de datos
+// Validar y limpiar historial de conversación
+function cleanConversationHistory(
+  messages: Anthropic.MessageParam[]
+): Anthropic.MessageParam[] {
+  const cleanedMessages: Anthropic.MessageParam[] = [];
+  const toolUseIds = new Set<string>();
+
+  // Primera pasada: recolectar todos los tool_use IDs
+  for (const message of messages) {
+    if (message.role === "assistant" && Array.isArray(message.content)) {
+      for (const block of message.content) {
+        if (block.type === "tool_use") {
+          toolUseIds.add(block.id);
+        }
+      }
+    }
+  }
+
+  // Segunda pasada: filtrar mensajes con tool_result huérfanos
+  for (const message of messages) {
+    if (message.role === "user" && Array.isArray(message.content)) {
+      // Filtrar tool_result blocks que no tienen tool_use correspondiente
+      const validContent = message.content.filter((block) => {
+        if (block.type === "tool_result") {
+          return toolUseIds.has(block.tool_use_id);
+        }
+        return true;
+      });
+
+      // Solo agregar el mensaje si tiene contenido válido
+      if (validContent.length > 0) {
+        cleanedMessages.push({
+          ...message,
+          content: validContent,
+        });
+      }
+    } else {
+      // Agregar mensajes de asistente sin filtrar
+      cleanedMessages.push(message);
+    }
+  }
+
+  return cleanedMessages;
+}
+
 async function getConversationHistory(
-  phoneNumber: string
+  phoneNumber: string,
+  maxMessages: number = 10 // LIMITAR a últimos 10 mensajes para reducir tokens
 ): Promise<Anthropic.MessageParam[]> {
   try {
     const conversation = await db.queryRow`
@@ -570,7 +738,19 @@ async function getConversationHistory(
       const state = conversation.conversation_state as {
         messages?: Anthropic.MessageParam[];
       };
-      return state.messages || [];
+      const messages = state.messages || [];
+      
+      // Limpiar historial antes de retornarlo
+      const cleanedMessages = cleanConversationHistory(messages);
+      
+      // LIMITAR a los últimos N mensajes para reducir consumo de tokens
+      const limitedMessages = cleanedMessages.slice(-maxMessages);
+      
+      if (cleanedMessages.length > maxMessages) {
+        console.log(`📉 Reduced history from ${cleanedMessages.length} to ${maxMessages} messages`);
+      }
+      
+      return limitedMessages;
     }
   } catch (error) {
     console.error("Error loading conversation history:", error);
@@ -619,13 +799,13 @@ export async function processWithClaude(
     // 2. Obtener prompt especializado del agente
     const agentPrompt = getAgentPrompt(agent);
 
-    // 3. Cargar historial de conversación (últimas 2 horas)
-    const history = await getConversationHistory(phoneNumber);
+    // 3. Cargar historial de conversación (últimas 2 horas, máximo 10 mensajes)
+    const history = await getConversationHistory(phoneNumber, 10);
     console.log(`📜 Loaded ${history.length} messages from history`);
 
     // 4. Construir mensaje con contexto
     const contextStr = JSON.stringify(context, null, 2);
-    
+
     // Si hay imagen, usar Claude Vision
     const userContent: Anthropic.MessageParam["content"] = mediaUrl
       ? [
@@ -656,23 +836,23 @@ ${contextStr}
 
 IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
 
-  const messages: Anthropic.MessageParam[] = [
+    const messages: Anthropic.MessageParam[] = [
       ...history, // Incluir historial
-    {
-      role: "user",
+      {
+        role: "user",
         content: userContent,
       },
     ];
 
     // 4. Llamar a Claude con prompt especializado
     const client = getAnthropicClient();
-  let response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
-    max_tokens: 4096,
+    let response = await client.messages.create({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 4096,
       system: agentPrompt, // Prompt especializado del agente
-    tools,
-    messages,
-  });
+      tools,
+      messages,
+    });
 
     console.log(`🤖 ${agent} response:`, response.stop_reason);
 
@@ -683,38 +863,38 @@ IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
     while (response.stop_reason === "tool_use" && iterations < MAX_ITERATIONS) {
       iterations++;
 
-    const toolUseBlocks = response.content.filter(
-      (block) => block.type === "tool_use"
-    ) as Anthropic.ToolUseBlock[];
+      const toolUseBlocks = response.content.filter(
+        (block) => block.type === "tool_use"
+      ) as Anthropic.ToolUseBlock[];
 
-    // Ejecutar tools
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const toolUse of toolUseBlocks) {
+      // Ejecutar tools
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const toolUse of toolUseBlocks) {
         console.log(`   🔧 ${toolUse.name}`);
-      const result = await executeTool(
-        toolUse.name,
-        toolUse.input as Record<string, any>
-      );
+        const result = await executeTool(
+          toolUse.name,
+          toolUse.input as Record<string, any>
+        );
 
-      toolResults.push({
-        type: "tool_result",
-        tool_use_id: toolUse.id,
-        content: result,
-      });
-    }
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
+          content: result,
+        });
+      }
 
       // Agregar a la conversación
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
       // Siguiente llamada
-    response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
+      response = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 4096,
         system: agentPrompt,
-      tools,
-      messages,
-    });
+        tools,
+        messages,
+      });
 
       console.log(`🤖 ${agent} response:`, response.stop_reason);
     }
@@ -726,7 +906,24 @@ IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
     const recentMessages = messages.slice(-10);
     await saveConversationHistory(phoneNumber, recentMessages);
   } catch (error: any) {
-    console.error("❌ Multi-agent error:", error.message);
+    console.error("❌ Multi-agent error:", error.status, error.error);
+    
+    // Manejar rate limit errors
+    if (error.status === 429) {
+      const retryAfter = error.headers?.get?.('retry-after') || 60;
+      console.log(`⏳ Rate limit reached. Retry after ${retryAfter}s. Informing user...`);
+      
+      // Enviar mensaje al usuario informando el delay
+      try {
+        await sendTextMessage(
+          phoneNumber,
+          "⏳ Estoy procesando muchas solicitudes ahora. Por favor intenta de nuevo en 1-2 minutos. ¡Gracias por tu paciencia!"
+        );
+      } catch (msgError) {
+        console.error("Failed to send rate limit message:", msgError);
+      }
+    }
+    
     throw error;
   }
 }

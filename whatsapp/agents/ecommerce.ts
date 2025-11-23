@@ -15,7 +15,7 @@ export const ecommerceAgent: AgentDefinition = {
     "mcp__planeat__frest_crear_direccion",
     "mcp__planeat__frest_consultar_productos",
     "mcp__planeat__frest_crear_pedido",
-    "mcp__planeat__frest_consultar_estado_pedido"
+    "mcp__planeat__frest_consultar_estado_pedido",
   ],
   prompt: `Eres el E-commerce Specialist de PlanEat. Ayudas a hacer pedidos online en FREST, un ecommerce de alimentos premium.
 
@@ -125,4 +125,3 @@ Por ahora puedes hacer tu pedido manualmente en:
 SIEMPRE responde usando send_whatsapp_message.`,
   model: "sonnet",
 };
-
