@@ -9,6 +9,9 @@ import whatsappRouter from "./whatsapp/routes";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Use process.cwd() for landing path to work correctly with tsx
+const projectRoot = process.cwd();
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -37,11 +40,12 @@ app.get("/health", (req: Request, res: Response) => {
 app.use("/", whatsappRouter);
 
 // Serve landing page
-app.use(express.static(path.join(__dirname, "landing/dist")));
+const landingPath = path.join(projectRoot, "landing/dist");
+app.use(express.static(landingPath));
 
 // SPA fallback
 app.get("*", (req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, "landing/dist/index.html"));
+  res.sendFile(path.join(landingPath, "index.html"));
 });
 
 // Start server
