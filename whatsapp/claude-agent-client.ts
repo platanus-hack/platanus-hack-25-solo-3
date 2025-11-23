@@ -18,6 +18,9 @@ if (!process.env.PATH?.includes("/usr/local/bin")) {
 }
 
 // Crear el servidor MCP con las tools
+// NOTA: Las tools de Frest (frest_*) solo están disponibles en claude-client.ts (API directa)
+// porque USE_AGENT_SDK está en false. Si se activa el SDK, habría que migrar las tools de Frest
+// al formato del SDK (con inputSchema y handler).
 const planeatServer = createSdkMcpServer({
   name: "planeat",
   version: "1.0.0",
@@ -165,7 +168,7 @@ export async function processWithAgentSDK(
           
           if (hasTask) {
             const taskTool = content.find((c: any) => c.name === 'Task');
-            const subagent = taskTool?.input?.subagent_type || 'unknown';
+            const subagent = (taskTool as any)?.input?.subagent_type || 'unknown';
             console.log(`🔀 Delegating to: ${subagent}`);
           } else if (toolUses.length > 0) {
             const toolNames = toolUses.map((c: any) => 

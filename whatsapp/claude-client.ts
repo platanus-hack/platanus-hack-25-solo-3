@@ -10,6 +10,14 @@ import { menuPlannerAgent } from "./agents/menu-planner";
 import { shoppingListAgent } from "./agents/shopping-list";
 import { ecommerceAgent } from "./agents/ecommerce";
 
+// Importar funciones de Frest tools
+import { executeFrestBuscarUsuario } from "./tools/frest-buscar-usuario";
+import { executeFrestRegistrarUsuario } from "./tools/frest-registrar-usuario";
+import { executeFrestCrearDireccion } from "./tools/frest-crear-direccion";
+import { executeFrestConsultarProductos } from "./tools/frest-consultar-productos";
+import { executeFrestCrearPedido } from "./tools/frest-crear-pedido";
+import { executeFrestConsultarEstadoPedido } from "./tools/frest-consultar-estado-pedido";
+
 // Definición de tools para Claude
 const tools: Anthropic.Tool[] = [
   {
@@ -146,6 +154,116 @@ const tools: Anthropic.Tool[] = [
         },
       },
       required: ["message_id", "emoji"],
+    },
+  },
+  // Frest API Tools
+  {
+    name: "frest_buscar_usuario",
+    description: "Busca si existe un usuario registrado en Frest por su número de teléfono. Retorna información completa del usuario incluyendo todas sus direcciones guardadas. Este tool debe ser el PRIMERO en llamarse antes de intentar registrar un usuario.",
+    input_schema: {
+      type: "object",
+      properties: {
+        telefono: {
+          type: "string",
+          description: "Número de teléfono en formato internacional SIN el símbolo +. Ejemplo: 56995545216",
+        },
+      },
+      required: ["telefono"],
+    },
+  },
+  {
+    name: "frest_registrar_usuario",
+    description: "Registra un nuevo usuario en Frest sin contraseña. El usuario recibirá un código de verificación por email. Solo usar este tool si frest_buscar_usuario retornó que el usuario NO existe.",
+    input_schema: {
+      type: "object",
+      properties: {
+        nombre: { type: "string", description: "Nombre del usuario" },
+        paterno: { type: "string", description: "Apellido paterno" },
+        materno: { type: "string", description: "Apellido materno (opcional)" },
+        email: { type: "string", description: "Email del usuario" },
+        rut: { type: "string", description: "RUT del usuario en formato 12345678-9 (opcional)" },
+        celular: { type: "string", description: "Número de celular con prefijo +56" },
+      },
+      required: ["nombre", "paterno", "email", "celular"],
+    },
+  },
+  {
+    name: "frest_crear_direccion",
+    description: "Crea una nueva dirección de despacho para un usuario existente en Frest. Determina automáticamente la zona de despacho según la ubicación.",
+    input_schema: {
+      type: "object",
+      properties: {
+        user_id: { type: "number", description: "ID del usuario en Frest" },
+        calle: { type: "string", description: "Nombre de la calle" },
+        numero: { type: "string", description: "Número de la dirección" },
+        depto: { type: "string", description: "Número de departamento u oficina (opcional)" },
+        comuna: { type: "string", description: "Comuna (ej: Providencia, Las Condes)" },
+        region: { type: "string", description: "Región (ej: Región Metropolitana)" },
+        coordenadas: { type: "string", description: 'Coordenadas en formato "latitud,longitud" (opcional)' },
+        observaciones: { type: "string", description: "Instrucciones adicionales para el despacho (ej: edificio azul, tocar timbre 402)" },
+      },
+      required: ["user_id", "calle", "numero", "comuna", "region"],
+    },
+  },
+  {
+    name: "frest_consultar_productos",
+    description: "Busca productos en el catálogo de Frest por nombre. Retorna precios en tiempo real (ya con ofertas incluidas), stock disponible y sugiere alternativas si no están disponibles. Usa este tool cuando el usuario tiene una lista de compras lista.",
+    input_schema: {
+      type: "object",
+      properties: {
+        productos: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array de nombres de productos a buscar (ej: ['Tomate', 'Lechuga', 'Palta Hass'])",
+        },
+        bodega_id: { type: "number", description: "ID de la bodega/tienda (opcional, default: 1 para Centro de Distribución)" },
+      },
+      required: ["productos"],
+    },
+  },
+  {
+    name: "frest_crear_pedido",
+    description: "Crea un pedido completo en Frest y genera el link de pago. Los precios se calculan automáticamente según las ofertas vigentes. IMPORTANTE: Solo envía producto_id y cantidad en los items, NO incluyas el precio.",
+    input_schema: {
+      type: "object",
+      properties: {
+        user_id: { type: "number", description: "ID del usuario en Frest" },
+        direccion_id: { type: "number", description: "ID de la dirección de despacho" },
+        ventana_id: { type: "number", description: "ID de la ventana de despacho (pregunta al usuario cuándo quiere recibir)" },
+        bodega_id: { type: "number", description: "ID de la bodega (default: 1 para Centro de Distribución)" },
+        tipo_pedido_id: { type: "number", description: "1=Despacho a domicilio, 2=Retiro en tienda, 3=Retiro express" },
+        forma_pago: {
+          type: "string",
+          enum: ["webpay", "fpay", "oneclick", "efectivo"],
+          description: "Método de pago: webpay, fpay, oneclick, efectivo",
+        },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              producto_id: { type: "number", description: "ID del producto" },
+              cantidad: { type: "number", description: "Cantidad a ordenar" },
+            },
+            required: ["producto_id", "cantidad"],
+          },
+          description: "Array de productos (solo producto_id y cantidad, NO incluir precio)",
+        },
+        observaciones: { type: "string", description: "Instrucciones adicionales para el pedido (opcional)" },
+        codigo_descuento: { type: "string", description: "Código de descuento (opcional)" },
+      },
+      required: ["user_id", "direccion_id", "ventana_id", "bodega_id", "tipo_pedido_id", "forma_pago", "items"],
+    },
+  },
+  {
+    name: "frest_consultar_estado_pedido",
+    description: "Consulta el estado actual de un pedido en Frest. Retorna información sobre el estado del pedido, pago y tracking del repartidor si está disponible.",
+    input_schema: {
+      type: "object",
+      properties: {
+        pedido_id: { type: "number", description: "ID del pedido en Frest" },
+      },
+      required: ["pedido_id"],
     },
   },
 ];
@@ -309,6 +427,31 @@ async function executeTool(
         return JSON.stringify({ success: true, message: "Reacción enviada" });
       }
 
+      // Frest API tools
+      case "frest_buscar_usuario": {
+        return await executeFrestBuscarUsuario(toolInput as any);
+      }
+
+      case "frest_registrar_usuario": {
+        return await executeFrestRegistrarUsuario(toolInput as any);
+      }
+
+      case "frest_crear_direccion": {
+        return await executeFrestCrearDireccion(toolInput as any);
+      }
+
+      case "frest_consultar_productos": {
+        return await executeFrestConsultarProductos(toolInput as any);
+      }
+
+      case "frest_crear_pedido": {
+        return await executeFrestCrearPedido(toolInput as any);
+      }
+
+      case "frest_consultar_estado_pedido": {
+        return await executeFrestConsultarEstadoPedido(toolInput as any);
+      }
+
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -367,8 +510,8 @@ async function routeToAgent(
     return { agent: "menu-planner", context: userContext };
   }
 
-  // PRIORIDAD 3: Detectar e-commerce
-  if (msgLower.match(/pedido|online|jumbo|lider|unimarc|santa isabel|pedir/)) {
+  // PRIORIDAD 3: Detectar e-commerce (Frest)
+  if (msgLower.match(/pedido|online|jumbo|lider|unimarc|santa isabel|pedir|frest|comprar online/)) {
     console.log("   → ecommerce");
     return { agent: "ecommerce", context: userContext };
   }
@@ -513,23 +656,23 @@ ${contextStr}
 
 IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
 
-    const messages: Anthropic.MessageParam[] = [
+  const messages: Anthropic.MessageParam[] = [
       ...history, // Incluir historial
-      {
-        role: "user",
+    {
+      role: "user",
         content: userContent,
       },
     ];
 
     // 4. Llamar a Claude con prompt especializado
     const client = getAnthropicClient();
-    let response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
+  let response = await client.messages.create({
+    model: "claude-sonnet-4-5-20250929",
+    max_tokens: 4096,
       system: agentPrompt, // Prompt especializado del agente
-      tools,
-      messages,
-    });
+    tools,
+    messages,
+  });
 
     console.log(`🤖 ${agent} response:`, response.stop_reason);
 
@@ -540,38 +683,38 @@ IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
     while (response.stop_reason === "tool_use" && iterations < MAX_ITERATIONS) {
       iterations++;
 
-      const toolUseBlocks = response.content.filter(
-        (block) => block.type === "tool_use"
-      ) as Anthropic.ToolUseBlock[];
+    const toolUseBlocks = response.content.filter(
+      (block) => block.type === "tool_use"
+    ) as Anthropic.ToolUseBlock[];
 
-      // Ejecutar tools
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const toolUse of toolUseBlocks) {
+    // Ejecutar tools
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const toolUse of toolUseBlocks) {
         console.log(`   🔧 ${toolUse.name}`);
-        const result = await executeTool(
-          toolUse.name,
-          toolUse.input as Record<string, any>
-        );
+      const result = await executeTool(
+        toolUse.name,
+        toolUse.input as Record<string, any>
+      );
 
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: result,
-        });
-      }
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: toolUse.id,
+        content: result,
+      });
+    }
 
       // Agregar a la conversación
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
       // Siguiente llamada
-      response = await client.messages.create({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 4096,
+    response = await client.messages.create({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 4096,
         system: agentPrompt,
-        tools,
-        messages,
-      });
+      tools,
+      messages,
+    });
 
       console.log(`🤖 ${agent} response:`, response.stop_reason);
     }
