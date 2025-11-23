@@ -1,241 +1,160 @@
-<div align="center">
-  <img src="project-logo.png" alt="PlanEat Logo" width="500"/>
-</div>
+# PlanEat - AI Meal Planning via WhatsApp
 
-# 🍽️ PlanEat - Tu Asistente Inteligente de Planificación de Comidas
+Sistema de planificación de comidas y listas de compras inteligente usando WhatsApp Business y Claude AI.
 
-**PlanEat** es un asistente conversacional por WhatsApp que ayuda a familias chilenas a planificar sus comidas semanales, gestionar preferencias alimentarias y generar listas de compras inteligentes.
+## 🚀 Quick Start
 
-## 🌟 ¿Qué hace PlanEat?
-
-PlanEat simplifica la vida familiar al ayudarte con:
-
-- **🏠 Gestión del Hogar**: Crea tu perfil familiar con todos los miembros, sus edades y preferencias
-- **🍜 Planificación de Menús**: Obtén sugerencias de comidas basadas en tus gustos (peruana, italiana, mexicana, etc.)
-- **🛒 Listas de Compras**: Genera automáticamente listas de ingredientes necesarios
-- **👨‍👩‍👧‍👦 Preferencias Personalizadas**: Guarda restricciones dietéticas, alergias y objetivos de cada familia
-- **💬 Conversacional**: Interactúa naturalmente por WhatsApp como si hablaras con un asistente personal
-
-## 🤖 Tecnología
-
-PlanEat está construido con tecnología de punta:
-
-- **Claude Agent SDK**: Inteligencia artificial conversacional avanzada de Anthropic
-- **Encore.ts**: Framework backend moderno para TypeScript con infraestructura automática
-- **PostgreSQL**: Base de datos robusta para gestionar hogares y conversaciones
-- **Kapso WhatsApp API**: Integración nativa con WhatsApp para comunicación fluida
-- **Persistencia de Sesión**: El asistente recuerda tus conversaciones durante 2 horas
-
-## 🏗️ Arquitectura
-
-```
-Usuario (WhatsApp) → Kapso API → Webhook Encore
-                                      ↓
-                              Message Processor
-                                      ↓
-                         Claude Agent SDK (Sonnet 4.5)
-                                      ↓
-                              Router Agent
-                                      ↓
-              ┌──────────────┬────────┴────────┬──────────────┐
-              ↓              ↓                 ↓              ↓
-         Onboarding     Menu Planner    Shopping List   E-commerce
-           Agent           Agent            Agent          Agent
-              ↓              ↓                 ↓              ↓
-              └──────────────┴────────┬────────┴──────────────┘
-                                      ↓
-                              MCP Tools Server
-                                      ↓
-                        ┌─────────────┴─────────────┐
-                        ↓                           ↓
-                   Database                  WhatsApp API
-                  (PostgreSQL)              (Send Messages)
-```
-
-### 🎯 Arquitectura de Subagentes
-
-PlanEat utiliza una arquitectura de **Router + Subagentes especializados** para manejar diferentes aspectos de la experiencia del usuario:
-
-#### **Router Agent** (Main)
-
-- Analiza cada mensaje del usuario
-- Identifica la intención principal
-- Delega al agente especializado apropiado
-- Modelo: Claude Sonnet 4.5
-
-#### **Subagentes Especializados:**
-
-1. **Onboarding Agent** 👋
-
-   - Registro de nuevos usuarios
-   - Configuración de perfiles familiares
-   - Tools: `create_household`, `add_household_members`
-
-2. **Menu Planner Agent** 🍽️
-
-   - Generación de menús semanales personalizados
-   - Adaptado a preferencias y restricciones
-   - Tools: `get_user_context`, `send_whatsapp_message`
-
-3. **Shopping List Agent** 🛒
-
-   - Creación de listas de compras organizadas
-   - Extracción de ingredientes de menús
-   - Tools: `get_user_context`, `send_whatsapp_message`
-
-4. **E-commerce Agent** 📦
-   - Asistencia con pedidos online (en desarrollo)
-   - Integración con supermercados chilenos
-   - Tools: `get_user_context`, `send_whatsapp_message`
-
-### Servicios
-
-- **`whatsapp/`**: Servicio principal con webhooks, procesamiento de mensajes y tools del agente
-  - `agents/`: Definiciones de los 4 subagentes especializados
-  - `tools/`: 5 herramientas MCP para interactuar con el sistema
-- **Base de datos**: Gestión de usuarios, hogares, miembros y estado de conversaciones con persistencia de sesión
-
-## 🚀 Características Principales
-
-### Gestión Familiar Inteligente
-
-El bot identifica automáticamente a los miembros de tu familia cuando los mencionas:
-
-```
-Usuario: "Soy Camilo, vivo con mi esposa Catalina y mis hijos Benjamín (14) y Emilia (7)"
-PlanEat: "¡Perfecto! He creado tu hogar con 4 miembros. ¿Tienen alguna restricción alimentaria?"
-```
-
-### Continuidad de Conversación
-
-PlanEat recuerda tus conversaciones anteriores durante 2 horas, permitiendo diálogos naturales:
-
-```
-Mensaje 1: "Hola, soy nuevo"
-Mensaje 2: "Me gusta la comida peruana"
-Mensaje 3: "Y también italiana"
-→ PlanEat recordará toda la conversación
-```
-
-### Tools Disponibles
-
-El agente tiene acceso a 5 herramientas especializadas:
-
-1. **`get_user_context`**: Obtiene información del usuario y su hogar
-2. **`create_household`**: Crea un nuevo hogar con información básica
-3. **`add_household_members`**: Agrega miembros al hogar (con o sin WhatsApp)
-4. **`send_whatsapp_message`**: Envía respuestas al usuario
-5. **`save_conversation_state`**: Guarda el progreso de la conversación
-
-## 📊 Base de Datos
-
-### Tablas
-
-- **`users`**: Usuarios identificados por número de WhatsApp
-- **`households`**: Hogares/familias con preferencias y restricciones
-- **`household_members`**: Miembros de cada hogar (admin, member)
-- **`conversations`**: Estado de conversaciones con persistencia de sesión
-
-## 🛠️ Desarrollo Local
-
-### Requisitos
-
-- Node.js 20+
-- Encore CLI
-- PostgreSQL (gestionado automáticamente por Encore)
-- Claude API Key
-- Kapso WhatsApp API credentials
-
-### Instalación
+### 1. Clonar e instalar
 
 ```bash
-# Clonar el repositorio
-git clone <repo-url>
 cd planeat
-
-# Instalar dependencias
 npm install
-
-# Configurar secrets
-encore secret set --type local ANTHROPIC_API_KEY
-encore secret set --type local KAPSO_API_KEY
-encore secret set --type local KAPSO_PHONE_NUMBER_ID
-
-# Correr en desarrollo
-encore run
 ```
 
-### Webhook Local con ngrok
+### 2. Configurar variables de entorno
 
 ```bash
-# Terminal 1: Correr Encore
-encore run
+cp .env.example .env
+# Editar .env con tus credenciales
+```
 
-# Terminal 2: Exponer puerto con ngrok
-ngrok http 4000
+### 3. Configurar base de datos
 
-# Configurar webhook en Kapso Dashboard
-URL: https://tu-url.ngrok.io/webhooks/whatsapp
-Eventos: whatsapp.message.received
+Crea una instancia RDS PostgreSQL 14 en AWS y copia la connection string a `DATABASE_URL`.
+
+### 4. Ejecutar migraciones
+
+```bash
+npm run migrate
+```
+
+### 5. Build landing page
+
+```bash
+npm run landing:build
+```
+
+### 6. Iniciar servidor
+
+```bash
+npm run dev
+```
+
+El servidor estará en `http://localhost:4000`
+
+## 📁 Estructura
+
+```
+planeat/
+├── server.ts              # Servidor Express principal
+├── config/
+│   └── env.ts            # Variables de entorno
+├── db/
+│   ├── connection.ts     # Conexión PostgreSQL
+│   └── migrate.ts        # Script de migraciones
+├── whatsapp/
+│   ├── routes.ts         # Endpoints WhatsApp
+│   ├── message-processor.ts
+│   ├── agents/           # Agentes de IA
+│   ├── tools/            # Herramientas Claude
+│   ├── migrations/       # Migraciones SQL
+│   ├── db.ts            # Database adapter
+│   └── secrets.ts       # Secrets
+├── landing/              # Frontend Vue
+│   └── dist/            # Build estático
+└── package.json
+```
+
+## 🔧 Scripts
+
+```bash
+npm run dev           # Desarrollo con hot reload
+npm run build         # Build completo (landing + TS)
+npm start             # Producción
+npm run migrate       # Ejecutar migraciones
+npm run db:clean      # Limpiar base de datos (requiere --force)
+npm run db:reset      # Limpiar + migrar (requiere --force)
+npm run landing:dev   # Dev landing (Vite)
+npm run landing:build # Build landing
+```
+
+## 🌐 Endpoints
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `GET /` | GET | Landing page |
+| `GET /health` | GET | Health check |
+| `POST /webhooks/whatsapp` | POST | Webhook Kapso |
+| `POST /test/webhook` | POST | Test webhook |
+| `POST /start` | POST | Iniciar conversación |
+
+## 💾 Base de Datos
+
+Usa AWS RDS PostgreSQL 14:
+
+1. Crea instancia RDS en AWS Console
+2. Security Group: permite puerto 5432
+3. Copia endpoint a `DATABASE_URL` en `.env`
+4. Ejecuta `npm run migrate`
+
+## 🤖 Agentes IA
+
+- **Router**: Enrutador principal de conversaciones
+- **Onboarding**: Setup inicial del usuario
+- **Menu Planner**: Planificación de menús semanales
+- **Shopping List**: Gestión de lista de compras
+- **Ecommerce**: Compra de productos
+
+## 📦 Deploy
+
+### Desarrollo Local
+
+```bash
+npm run dev
+```
+
+### Producción (EC2)
+
+```bash
+# En EC2
+git clone <repo>
+cd planeat
+cp .env.example .env
+# Editar .env
+npm install
+npm run build
+npm run migrate
+
+# Con PM2
+pm2 start dist/server.js --name planeat
+pm2 save
+pm2 startup
 ```
 
 ## 🔒 Variables de Entorno
 
-El proyecto usa el sistema de secrets de Encore:
+Ver `.env.example` para todas las variables requeridas.
 
-- `ANTHROPIC_API_KEY`: API key de Claude
+### Esenciales
+
+- `DATABASE_URL`: Connection string de PostgreSQL
 - `KAPSO_API_KEY`: API key de Kapso
 - `KAPSO_PHONE_NUMBER_ID`: ID del número de WhatsApp
+- `ANTHROPIC_API_KEY`: API key de Claude
 
-## 📝 Logs y Debugging
+## 🛠️ Tech Stack
 
-PlanEat incluye logging detallado para debugging:
+- **Backend**: Express.js + TypeScript
+- **Database**: PostgreSQL 14 (AWS RDS)
+- **AI**: Claude 3.5 (Anthropic)
+- **WhatsApp**: Kapso Cloud API
+- **Frontend**: Vue 3 + Vite + Tailwind CSS
 
-```
-🤖 Using Claude Agent SDK
-📝 Resuming existing session: abc123...
-🎯 Starting Agent SDK query with config:
-   Model: claude-sonnet-4-5-20250929
-   Permission Mode: bypassPermissions
-   Max Turns: 15
-   Phone: 56995545216
-   Session: Resume abc123...
+## 📝 Licencia
 
-🔧 TOOL CALLED: get_user_context
-   Phone: 56995545216
-   Result: User does not exist
-
-🔧 TOOL CALLED: create_household
-   Admin: 56995545216
-   Name: Camilo
-   Size: 4
-✅ Household created successfully! ID: 1
-
-💾 Session saved: abc123...
-✅ Message processed successfully
-```
-
-## 🤝 Contribuir
-
-¿Quieres mejorar PlanEat? Las contribuciones son bienvenidas:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📄 Licencia
-
-Este proyecto fue creado durante el Platanus Hack 2025.
-
-## 🙏 Agradecimientos
-
-- **Anthropic** por Claude Agent SDK
-- **Encore** por el framework backend increíble
-- **Kapso** por la integración con WhatsApp
-- **Platanus** por organizar el hackathon
+MPL-2.0
 
 ---
 
-**Desarrollado con ❤️ para familias chilenas que quieren comer mejor y planificar más fácil**
+**Desarrollado para PlatanusHack 2025** 🚀
+

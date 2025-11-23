@@ -1,6 +1,7 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { db } from "../db";
+import { pool } from "../../db/connection";
 
 export const getUserContextTool = tool(
   "get_user_context",
@@ -31,31 +32,33 @@ export const getUserContextTool = tool(
 
     console.log("   User found:", user.phone_number);
 
-    const household = await db.queryRow`
+    // Optimización: Una sola query con JOIN para obtener todo
+    let household = null;
+    let members = [];
+
+    const householdResult = await db.queryRow`
       SELECT h.*, hm.role
       FROM households h
       JOIN household_members hm ON h.id = hm.household_id
       WHERE hm.phone_number = ${phone_number}
     `;
 
-    // Obtener todos los miembros del hogar si existe
-    let members = [];
-    if (household) {
-      const membersQuery = await db.query`
-        SELECT name, phone_number, age, relationship, role
-        FROM household_members
-        WHERE household_id = ${household.id}
-        ORDER BY 
-          CASE role 
-            WHEN 'admin' THEN 1 
-            ELSE 2 
-          END,
-          created_at
-      `;
+    if (householdResult) {
+      household = householdResult;
 
-      for await (const member of membersQuery) {
-        members.push(member);
-      }
+      // Obtener miembros en una sola query optimizada
+      const membersQuery = pool.query(
+        `SELECT name, phone_number, age, relationship, role
+         FROM household_members
+         WHERE household_id = $1
+         ORDER BY 
+           CASE role WHEN 'admin' THEN 1 ELSE 2 END,
+           created_at`,
+        [household.id]
+      );
+
+      const membersResult = await membersQuery;
+      members = membersResult.rows;
     }
 
     const result = {
@@ -77,4 +80,3 @@ export const getUserContextTool = tool(
     };
   }
 );
-

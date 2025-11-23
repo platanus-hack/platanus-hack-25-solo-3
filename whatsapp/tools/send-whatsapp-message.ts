@@ -17,6 +17,7 @@ export const sendWhatsAppMessageTool = tool(
     try {
       await sendTextMessage(to, message);
       console.log("✅ WhatsApp message sent successfully");
+    console.log("   🎯 USER RESPONSE COMPLETED");
 
       return {
         content: [

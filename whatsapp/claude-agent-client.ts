@@ -1,4 +1,4 @@
-// Cliente usando Claude Agent SDK oficial
+// Cliente usando Claude Agent SDK oficial con arquitectura Multi-Agente
 import { query, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { ANTHROPIC_API_KEY } from "./secrets";
 import { db } from "./db";
@@ -16,9 +16,6 @@ import { PLANEAT_AGENTS, routerPrompt } from "./agents";
 if (!process.env.PATH?.includes("/usr/local/bin")) {
   process.env.PATH = `${process.env.PATH}:/usr/local/bin:/usr/bin:/bin`;
 }
-
-// System prompt - Router Agent (imported from agents/router.ts)
-const SYSTEM_PROMPT = routerPrompt;
 
 // Crear el servidor MCP con las tools
 const planeatServer = createSdkMcpServer({
@@ -46,7 +43,7 @@ async function getOrCreateSession(
 
     // Si el usuario NO existe, SIEMPRE iniciar nueva sesión (no reanudar cache anterior)
     if (!userExists) {
-      console.log("🆕 User doesn't exist - Starting fresh session (no resume)");
+      console.log("🆕 New user - Starting fresh session");
       return { sessionId: undefined, isNew: true };
     }
 
@@ -61,7 +58,7 @@ async function getOrCreateSession(
     `;
 
     if (conversation?.session_id) {
-      console.log(`📝 Resuming existing session: ${conversation.session_id}`);
+      console.log(`📝 Resuming session: ${conversation.session_id}`);
       return { sessionId: conversation.session_id, isNew: false };
     }
 
@@ -69,7 +66,6 @@ async function getOrCreateSession(
     return { sessionId: undefined, isNew: true };
   } catch (error) {
     console.error("❌ Error getting session:", error);
-    console.log("🆕 Falling back to new session");
     return { sessionId: undefined, isNew: true };
   }
 }
@@ -101,127 +97,100 @@ async function saveSession(
   }
 }
 
-// Procesar mensaje con Claude Agent SDK
+// Procesar mensaje con Claude Agent SDK (Arquitectura Multi-Agente)
 export async function processWithAgentSDK(
   userMessage: string,
   phoneNumber: string,
   messageId?: string
 ): Promise<void> {
-  console.log("🤖 Using Claude Agent SDK");
+  console.log("🤖 Using Multi-Agent SDK");
 
   // Obtener sesión previa si existe
-  const { sessionId: existingSessionId, isNew } = await getOrCreateSession(
-    phoneNumber
-  );
+  const { sessionId: existingSessionId } = await getOrCreateSession(phoneNumber);
 
-  const prompt = `Usuario: ${phoneNumber}
-Mensaje: "${userMessage}"
-${messageId ? `Message ID: ${messageId}` : ""}
-
-Analiza el mensaje y delega al agente especializado apropiado.
-Recuerda: SIEMPRE responde al usuario usando send_whatsapp_message("${phoneNumber}", "...")
-${
-  messageId
-    ? `OPCIONAL: Puedes reaccionar al mensaje usando send_reaction("${phoneNumber}", "${messageId}", emoji) solo si es muy apropiado`
-    : ""
-}`;
+  // Prompt simple y directo para el router
+  const prompt = `Usuario ${phoneNumber} dice: "${userMessage}"`;
 
   try {
-    // Configurar API key en el entorno antes de llamar al SDK
+    // Configurar API key
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY();
 
-    console.log("🎯 Starting Agent SDK query with config:");
-    console.log(`   Model: claude-sonnet-4-5-20250929`);
-    console.log(`   Permission Mode: bypassPermissions`);
-    console.log(`   Max Turns: 15`);
-    console.log(
-      `   Agents: ${Object.keys(PLANEAT_AGENTS).length} subagents available`
-    );
-    console.log(`   Phone: ${phoneNumber}`);
-    console.log(
-      `   Session: ${existingSessionId ? `Resume ${existingSessionId}` : "New"}`
-    );
+    // Configuración Multi-Agente según documentación oficial
+    const maxTurns = 15;
+    const timeoutMs = 40000; // 40 segundos
+    
+    console.log("🎯 Multi-Agent Configuration:");
+    console.log(`   Subagents: ${Object.keys(PLANEAT_AGENTS).join(", ")}`);
+    console.log(`   Max Turns: ${maxTurns} | Timeout: ${timeoutMs/1000}s`);
+    console.log(`   Session: ${existingSessionId || "New"}`);
 
-    // Configuración del SDK
     const queryOptions: any = {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: routerPrompt,
       model: "claude-sonnet-4-5-20250929",
+      maxTurns,
+      agents: PLANEAT_AGENTS, // Multi-agent architecture
+      mcpServers: { planeat: planeatServer },
       permissionMode: "bypassPermissions",
-      maxTurns: 15,
-      // Configurar subagentes especializados
-      agents: PLANEAT_AGENTS,
-      // SOLO permitir nuestras herramientas custom (no las de Claude Code)
-      allowedTools: [
-        "get_user_context",
-        "send_whatsapp_message",
-        "create_household",
-        "add_household_members",
-        "save_conversation_state",
-        "send_reaction",
-      ],
-      mcpServers: {
-        planeat: planeatServer,
-      },
     };
 
-    // Si existe sesión previa, reanudar en lugar de crear nueva
+    // Reanudar sesión si existe
     if (existingSessionId) {
       queryOptions.resume = existingSessionId;
     }
 
     let currentSessionId: string | undefined = existingSessionId;
 
-    // Usar Agent SDK con configuración
-    for await (const message of query({
-      prompt,
-      options: queryOptions,
-    })) {
-      // Log detallado de TODOS los mensajes para debugging
-      console.log("📨 SDK Message:", {
-        type: message.type,
-        timestamp: new Date().toISOString(),
-      });
+    // Timeout
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout (${timeoutMs/1000}s)`)), timeoutMs);
+    });
 
-      // Capturar session_id de los mensajes
-      if ("session_id" in message && message.session_id) {
-        currentSessionId = message.session_id;
+    // Ejecutar query multi-agente
+    const queryPromise = (async () => {
+      for await (const message of query({ prompt, options: queryOptions })) {
+        // Capturar session_id
+        if ("session_id" in message && message.session_id) {
+          currentSessionId = message.session_id;
+        }
+
+        // Logging simplificado
+        if (message.type === "system") {
+          console.log("⚙️  System initialized");
+        } else if (message.type === "assistant") {
+          const content = message.message?.content || [];
+          const hasTask = content.some((c: any) => 
+            c.type === 'tool_use' && c.name === 'Task'
+          );
+          const toolUses = content.filter((c: any) => c.type === 'tool_use');
+          
+          if (hasTask) {
+            const taskTool = content.find((c: any) => c.name === 'Task');
+            const subagent = taskTool?.input?.subagent_type || 'unknown';
+            console.log(`🔀 Delegating to: ${subagent}`);
+          } else if (toolUses.length > 0) {
+            const toolNames = toolUses.map((c: any) => 
+              c.name.replace('mcp__planeat__', '')
+            );
+            console.log(`🔧 Tools: ${toolNames.join(", ")}`);
+          }
+        } else if (message.type === "result") {
+          console.log("✅ Completed");
+          console.log(`   ${message.duration_ms}ms | ${message.num_turns} turns | $${message.total_cost_usd.toFixed(4)}`);
+          break;
+        }
       }
+    })();
 
-      if (message.type === "assistant") {
-        console.log("🤖 Agent response:", JSON.stringify(message, null, 2));
-      } else if (message.type === "tool_progress") {
-        console.log("🔧 Tool in progress:", message.tool_name);
-        console.log("   Full message:", JSON.stringify(message, null, 2));
-      } else if (message.type === "result") {
-        console.log("✅ Query completed successfully");
-        console.log(
-          `   Duration: ${message.duration_ms}ms | Turns: ${message.num_turns} | Cost: $${message.total_cost_usd}`
-        );
-        console.log("   Full result:", JSON.stringify(message, null, 2));
-      } else if (message.type === "user") {
-        console.log("👤 User message processed");
-      } else if (message.type === "stream_event") {
-        console.log("📡 Stream event:", JSON.stringify(message, null, 2));
-      } else if (message.type === "system") {
-        console.log("⚙️ System message:", JSON.stringify(message, null, 2));
-      } else if (message.type === "auth_status") {
-        console.log("🔐 Auth status:", JSON.stringify(message, null, 2));
-      } else {
-        console.log(
-          "❓ Unknown message type:",
-          JSON.stringify(message, null, 2)
-        );
-      }
-    }
+    await Promise.race([queryPromise, timeout]);
 
-    // Guardar session_id al final
+    // Guardar session_id
     if (currentSessionId && currentSessionId !== existingSessionId) {
       await saveSession(phoneNumber, currentSessionId);
     }
 
-    console.log("✅ Agent SDK processing complete");
+    console.log("✅ Multi-agent processing complete");
   } catch (error: any) {
-    console.error("❌ Agent SDK error:", error);
+    console.error("❌ Multi-agent error:", error.message);
     throw error;
   }
 }

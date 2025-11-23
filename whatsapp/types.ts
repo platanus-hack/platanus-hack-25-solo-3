@@ -11,7 +11,20 @@ export interface KapsoWebhookPayload {
     };
     image?: {
       caption?: string;
-      id: string;
+      id?: string;
+      link?: string;
+      mime_type?: string;
+      sha256?: string;
+    };
+    audio?: {
+      id?: string;
+      voice?: boolean;
+      link?: string;
+      mime_type?: string;
+      sha256?: string;
+    };
+    caption?: {
+      body?: string;
     };
     kapso: {
       direction: 'inbound' | 'outbound';
@@ -19,6 +32,13 @@ export interface KapsoWebhookPayload {
       processing_status: string;
       origin: string;
       has_media: boolean;
+      media_url?: string;
+      media_data?: {
+        url: string;
+        filename: string;
+        content_type: string;
+        byte_size: number;
+      };
     };
   };
   conversation: {
@@ -29,6 +49,7 @@ export interface KapsoWebhookPayload {
     kapso?: {
       contact_name?: string;
       messages_count: number;
+      last_message_text?: string;
     };
   };
   is_new_conversation: boolean;
