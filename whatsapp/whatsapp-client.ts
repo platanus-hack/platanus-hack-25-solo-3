@@ -110,60 +110,24 @@ export async function sendReaction(
   }
 }
 
-// Helper para enviar imagen por WhatsApp
+// Helper para enviar imagen por WhatsApp usando URL pública
 export async function sendImageMessage(
   to: string,
-  imageBuffer: Buffer,
+  imageUrl: string,
   caption?: string
 ) {
-  console.log(`📸 Sending image to ${to} (${imageBuffer.length} bytes)`);
+  console.log(`📸 Sending image to ${to} from URL: ${imageUrl}`);
   
   const client = getWhatsAppClient();
+  
   try {
-    // Paso 1: Subir la imagen a WhatsApp Media API
-    console.log("📤 Uploading image to WhatsApp Media API...");
-    
-    // Crear un FormData con el buffer de imagen
-    const FormData = (await import('form-data')).default;
-    const form = new FormData();
-    form.append('file', imageBuffer, {
-      filename: 'recipe-image.png',
-      contentType: 'image/png',
-    });
-    form.append('type', 'image/png');
-    form.append('messaging_product', 'whatsapp');
-    
-    // Subir usando fetch directamente a la API de WhatsApp
-    const uploadResponse = await fetch(
-      `https://app.kapso.ai/api/meta/${KAPSO_PHONE_NUMBER_ID()}/media`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${KAPSO_API_KEY()}`,
-          ...form.getHeaders(),
-        },
-        body: form,
-      }
-    );
-    
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      throw new Error(`Media upload failed: ${uploadResponse.status} - ${errorText}`);
-    }
-    
-    const uploadResult = await uploadResponse.json() as { id: string };
-    const mediaId = uploadResult.id;
-    
-    console.log(`✅ Image uploaded successfully. Media ID: ${mediaId}`);
-    
-    // Paso 2: Enviar mensaje con el media ID
-    console.log("📨 Sending WhatsApp message with media ID...");
+    console.log("📤 Sending image via Kapso SDK...");
     
     const response = await client.messages.sendImage({
       phoneNumberId: KAPSO_PHONE_NUMBER_ID(),
       to,
       image: {
-        id: mediaId,
+        link: imageUrl,
         caption,
       },
     });
@@ -173,6 +137,18 @@ export async function sendImageMessage(
     
   } catch (error: any) {
     console.error(`❌ Failed to send image to ${to}:`, error.message);
+    
+    // Fallback: Intentar enviar solo el texto de la receta
+    if (caption) {
+      console.log("⚠️  Falling back to text-only message...");
+      try {
+        await sendTextMessage(to, `📷 [Imagen no disponible]\n\n${caption}`);
+        console.log("✅ Fallback text message sent");
+      } catch (fallbackError) {
+        console.error("❌ Fallback also failed:", fallbackError);
+      }
+    }
+    
     throw new Error(`Failed to send image: ${error.message}`);
   }
 }

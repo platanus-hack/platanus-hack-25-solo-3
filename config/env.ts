@@ -21,6 +21,7 @@ for (const envVar of requiredEnvVars) {
 export const config = {
   port: parseInt(process.env.PORT || '4000'),
   nodeEnv: process.env.NODE_ENV || 'development',
+  publicUrl: process.env.PUBLIC_URL || 'https://planeat.life',
   database: {
     url: process.env.DATABASE_URL!,
   },

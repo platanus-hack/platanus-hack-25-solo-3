@@ -39,6 +39,10 @@ app.get("/health", (req: Request, res: Response) => {
 // WhatsApp routes
 app.use("/", whatsappRouter);
 
+// Serve generated images
+const imagesPath = path.join(projectRoot, "generated-images");
+app.use("/images", express.static(imagesPath));
+
 // Serve landing page
 const landingPath = path.join(projectRoot, "landing/dist");
 app.use(express.static(landingPath));

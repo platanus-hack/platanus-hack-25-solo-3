@@ -366,6 +366,7 @@ const tools: Anthropic.Tool[] = [
       },
       required: ["pedido_id"],
     },
+    cache_control: { type: "ephemeral" },
   },
 ];
 
@@ -584,12 +585,12 @@ function getAnthropicClient(): Anthropic {
   return anthropicClient;
 }
 
-// Router: Detecta intención y devuelve el agente apropiado
+// Router: Detecta intención y devuelve el agente apropiado usando Claude Haiku
 async function routeToAgent(
   userMessage: string,
   phoneNumber: string
 ): Promise<{ agent: string; context: any }> {
-  console.log("🔀 Routing message...");
+  console.log("🔀 Routing message with Claude Haiku...");
 
   // Obtener contexto del usuario
   const userContextStr = await executeTool("get_user_context", {
@@ -599,64 +600,70 @@ async function routeToAgent(
 
   console.log(`   User exists: ${userContext.exists}`);
 
-  const msgLower = userMessage.toLowerCase();
+  // Importar prompt del router
+  const { routerPrompt } = await import("./agents/router");
 
-  // 🎯 PRIORIDAD 1: Detectar lista de compras (INCLUSO PARA USUARIOS NUEVOS)
-  // Patrones: "necesito X, Y, Z" o menciona varios ingredientes
-  const hasShoppingKeywords = msgLower.match(
-    /necesito|comprar|lista|ingrediente/
-  );
-  const hasIngredients = msgLower.match(
-    /tomate|pollo|carne|pan|leche|arroz|verdura|fruta|queso|huevo|pescado|lechuga|zanahoria/i
-  );
-  const hasMultipleItems =
-    msgLower.split(/,|y/).filter((s) => s.trim().length > 3).length >= 3;
+  // Usar Claude Haiku para routing inteligente
+  const client = getAnthropicClient();
+  
+  const contextInfo = `
+CONTEXTO DEL USUARIO:
+- Existe en BD: ${userContext.exists}
+- Tiene household: ${userContext.household ? 'Sí' : 'No'}
+${userContext.household ? `- Miembros del hogar: ${userContext.members?.length || 0}` : ''}
 
-  if (hasShoppingKeywords && hasIngredients) {
-    console.log("   → shopping-list (detected keywords + ingredients)");
-    return { agent: "shopping-list", context: userContext };
-  }
+MENSAJE DEL USUARIO: "${userMessage}"
+`;
 
-  if (hasIngredients && hasMultipleItems) {
-    console.log("   → shopping-list (detected multiple food items)");
-    return { agent: "shopping-list", context: userContext };
-  }
+  try {
+    const routingResponse = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 500,
+      system: [
+        {
+          type: "text",
+          text: routerPrompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
+      messages: [
+        {
+          role: "user",
+          content: contextInfo + "\n\nResponde únicamente con el nombre del subagente apropiado: onboarding, menu-planner, shopping-list, o ecommerce"
+        }
+      ]
+    });
 
-  // PRIORIDAD 2: Detectar menú/recetas
-  if (msgLower.match(/menú|menu|receta|cocinar|preparar|comida|plato/)) {
-    console.log("   → menu-planner");
-    return { agent: "menu-planner", context: userContext };
-  }
+    // Extraer el agente de la respuesta
+    const responseText = routingResponse.content
+      .filter(block => block.type === "text")
+      .map(block => (block as any).text)
+      .join("")
+      .toLowerCase()
+      .trim();
 
-  // PRIORIDAD 3: Detectar e-commerce (Frest)
-  if (
-    msgLower.match(
-      /pedido|online|jumbo|lider|unimarc|santa isabel|pedir|frest|comprar online/
-    )
-  ) {
-    console.log("   → ecommerce");
-    return { agent: "ecommerce", context: userContext };
-  }
+    // Determinar agente basado en la respuesta de Haiku
+    let agent = "onboarding"; // default
+    
+    if (responseText.includes("menu-planner")) {
+      agent = "menu-planner";
+    } else if (responseText.includes("shopping-list")) {
+      agent = "shopping-list";
+    } else if (responseText.includes("ecommerce")) {
+      agent = "ecommerce";
+    } else if (responseText.includes("onboarding")) {
+      agent = "onboarding";
+    }
 
-  // PRIORIDAD 4: Actualizar perfil
-  if (
-    msgLower.match(
-      /familia|perfil|actualizar|cambiar|agregar miembro|household/
-    )
-  ) {
-    console.log("   → onboarding (update profile)");
+    console.log(`   → ${agent} (selected by Haiku)`);
+    console.log(`💰 Router cache - Created: ${routingResponse.usage.cache_creation_input_tokens || 0}, Read: ${routingResponse.usage.cache_read_input_tokens || 0}`);
+    return { agent, context: userContext };
+    
+  } catch (error) {
+    console.error("⚠️  Router error, falling back to onboarding:", error);
+    // Fallback a onboarding si hay error
     return { agent: "onboarding", context: userContext };
   }
-
-  // PRIORIDAD 5: Usuario nuevo sin intención clara → onboarding
-  if (!userContext.exists) {
-    console.log("   → onboarding (new user, general greeting)");
-    return { agent: "onboarding", context: userContext };
-  }
-
-  // Default: onboarding RÁPIDO (ofrece opciones)
-  console.log("   → onboarding (default)");
-  return { agent: "onboarding", context: userContext };
 }
 
 // Obtener prompt del agente
@@ -844,17 +851,24 @@ IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
       },
     ];
 
-    // 4. Llamar a Claude con prompt especializado
+    // 4. Llamar a Claude con prompt especializado y caching
     const client = getAnthropicClient();
     let response = await client.messages.create({
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 4096,
-      system: agentPrompt, // Prompt especializado del agente
+      system: [
+        {
+          type: "text",
+          text: agentPrompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
       tools,
       messages,
     });
 
     console.log(`🤖 ${agent} response:`, response.stop_reason);
+    console.log(`💰 Cache stats - Created: ${response.usage.cache_creation_input_tokens || 0}, Read: ${response.usage.cache_read_input_tokens || 0}, Input: ${response.usage.input_tokens}`);
 
     // 5. Loop de tool use
     let iterations = 0;
@@ -887,16 +901,23 @@ IMPORTANTE: Responde usando send_whatsapp_message al número ${phoneNumber}.`;
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
-      // Siguiente llamada
+      // Siguiente llamada (con caching)
       response = await client.messages.create({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 4096,
-        system: agentPrompt,
+        system: [
+          {
+            type: "text",
+            text: agentPrompt,
+            cache_control: { type: "ephemeral" }
+          }
+        ],
         tools,
         messages,
       });
 
       console.log(`🤖 ${agent} response:`, response.stop_reason);
+    console.log(`💰 Cache stats - Created: ${response.usage.cache_creation_input_tokens || 0}, Read: ${response.usage.cache_read_input_tokens || 0}, Input: ${response.usage.input_tokens}`);
     }
 
     const duration = Date.now() - startTime;

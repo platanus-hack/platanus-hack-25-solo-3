@@ -1,9 +1,35 @@
 // Tool para generar y enviar imágenes de recetas
 import { tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import fs from "fs/promises";
+import path from "path";
+import { config } from "../../config/env";
 import { generateFoodImage } from "../clients/google-image-client";
 import { composeFoodImageWithRecipe } from "../clients/image-composer";
 import { sendImageMessage } from "../whatsapp-client";
+
+// Helper para guardar imagen y obtener URL pública
+async function saveImageAndGetUrl(imageBuffer: Buffer, recipeName: string): Promise<string> {
+  // Crear nombre de archivo único basado en timestamp y nombre de receta
+  const timestamp = Date.now();
+  const safeName = recipeName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const filename = `${timestamp}-${safeName}.png`;
+  
+  // Guardar en generated-images/
+  const imagesDir = path.join(process.cwd(), 'generated-images');
+  const filepath = path.join(imagesDir, filename);
+  
+  await fs.writeFile(filepath, imageBuffer);
+  console.log(`💾 Image saved: ${filepath}`);
+  
+  // Retornar URL pública
+  const publicUrl = `${config.publicUrl}/images/${filename}`;
+  console.log(`🔗 Public URL: ${publicUrl}`);
+  return publicUrl;
+}
 
 /**
  * Tool MCP para generar y enviar imagen de receta
@@ -54,11 +80,15 @@ export const generateRecipeImageTool = tool(
         recipe_text
       );
 
-      // Paso 3: Enviar por WhatsApp
-      console.log("📤 Step 3/3: Sending image via WhatsApp...");
+      // Paso 3: Guardar imagen y obtener URL pública
+      console.log("💾 Step 3/4: Saving image to disk...");
+      const imageUrl = await saveImageAndGetUrl(finalImageBuffer, recipe_name);
+
+      // Paso 4: Enviar por WhatsApp con URL
+      console.log("📤 Step 4/4: Sending image via WhatsApp...");
       await sendImageMessage(
         phone_number,
-        finalImageBuffer,
+        imageUrl,
         `📖 Receta: ${recipe_name}`
       );
 
@@ -72,6 +102,7 @@ export const generateRecipeImageTool = tool(
               success: true,
               message: `Imagen de receta "${recipe_name}" enviada exitosamente`,
               recipe_name,
+              image_url: imageUrl,
             }),
           },
         ],
@@ -119,11 +150,15 @@ export async function generateRecipeImage(
       recipeText
     );
 
-    // Paso 3: Enviar por WhatsApp
-    console.log("📤 Step 3/3: Sending image via WhatsApp...");
+    // Paso 3: Guardar imagen y obtener URL pública
+    console.log("💾 Step 3/4: Saving image to disk...");
+    const imageUrl = await saveImageAndGetUrl(finalImageBuffer, recipeName);
+
+    // Paso 4: Enviar por WhatsApp con URL
+    console.log("📤 Step 4/4: Sending image via WhatsApp...");
     await sendImageMessage(
       phoneNumber,
-      finalImageBuffer,
+      imageUrl,
       `📖 Receta: ${recipeName}`
     );
 
