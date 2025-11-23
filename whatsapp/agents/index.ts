@@ -1,15 +1,15 @@
 // Export all agent definitions
 import { AgentDefinition } from "@anthropic-ai/claude-agent-sdk";
-import { onboardingAgent } from "./onboarding";
-import { menuPlannerAgent } from "./menu-planner";
-import { shoppingListAgent } from "./shopping-list";
-import { ecommerceAgent } from "./ecommerce";
+import { onboardingAgent } from "./onboarding.js";
+import { menuPlannerAgent } from "./menu-planner.js";
+import { shoppingListAgent } from "./shopping-list.js";
+import { ecommerceAgent } from "./ecommerce.js";
 
-export { routerPrompt } from "./router";
-export { onboardingAgent } from "./onboarding";
-export { menuPlannerAgent } from "./menu-planner";
-export { shoppingListAgent } from "./shopping-list";
-export { ecommerceAgent } from "./ecommerce";
+export { routerPrompt } from "./router.js";
+export { onboardingAgent } from "./onboarding.js";
+export { menuPlannerAgent } from "./menu-planner.js";
+export { shoppingListAgent } from "./shopping-list.js";
+export { ecommerceAgent } from "./ecommerce.js";
 
 // Export configuration object with all agents
 export const PLANEAT_AGENTS: Record<string, AgentDefinition> = {

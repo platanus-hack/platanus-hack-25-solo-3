@@ -2,7 +2,7 @@
 // https://docs.kapso.ai/docs/whatsapp/typescript-sdk/introduction
 
 import { WhatsAppClient } from "@kapso/whatsapp-cloud-api";
-import { KAPSO_API_KEY, KAPSO_PHONE_NUMBER_ID } from "./secrets";
+import { KAPSO_API_KEY, KAPSO_PHONE_NUMBER_ID } from "./secrets.js";
 
 let whatsappClient: WhatsAppClient | null = null;
 

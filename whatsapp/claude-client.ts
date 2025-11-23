@@ -1,22 +1,22 @@
 // Cliente de Claude usando API directa con arquitectura multi-agente manual
 import Anthropic from "@anthropic-ai/sdk";
-import { ANTHROPIC_API_KEY } from "./secrets";
-import { sendTextMessage } from "./whatsapp-client";
-import { db } from "./db";
+import { ANTHROPIC_API_KEY } from "./secrets.js";
+import { sendTextMessage } from "./whatsapp-client.js";
+import { db } from "./db.js";
 
 // Importar prompts de los agentes
-import { onboardingAgent } from "./agents/onboarding";
-import { menuPlannerAgent } from "./agents/menu-planner";
-import { shoppingListAgent } from "./agents/shopping-list";
-import { ecommerceAgent } from "./agents/ecommerce";
+import { onboardingAgent } from "./agents/onboarding.js";
+import { menuPlannerAgent } from "./agents/menu-planner.js";
+import { shoppingListAgent } from "./agents/shopping-list.js";
+import { ecommerceAgent } from "./agents/ecommerce.js";
 
 // Importar funciones de Frest tools
-import { executeFrestBuscarUsuario } from "./tools/frest-buscar-usuario";
-import { executeFrestRegistrarUsuario } from "./tools/frest-registrar-usuario";
-import { executeFrestCrearDireccion } from "./tools/frest-crear-direccion";
-import { executeFrestConsultarProductos } from "./tools/frest-consultar-productos";
-import { executeFrestCrearPedido } from "./tools/frest-crear-pedido";
-import { executeFrestConsultarEstadoPedido } from "./tools/frest-consultar-estado-pedido";
+import { executeFrestBuscarUsuario } from "./tools/frest-buscar-usuario.js";
+import { executeFrestRegistrarUsuario } from "./tools/frest-registrar-usuario.js";
+import { executeFrestCrearDireccion } from "./tools/frest-crear-direccion.js";
+import { executeFrestConsultarProductos } from "./tools/frest-consultar-productos.js";
+import { executeFrestCrearPedido } from "./tools/frest-crear-pedido.js";
+import { executeFrestConsultarEstadoPedido } from "./tools/frest-consultar-estado-pedido.js";
 
 // Definición de tools para Claude
 const tools: Anthropic.Tool[] = [
