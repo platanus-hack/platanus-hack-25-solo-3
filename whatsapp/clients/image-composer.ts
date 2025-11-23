@@ -148,7 +148,7 @@ function generateRecipeTextSVG(recipe: RecipeComposition, width: number): string
   
   // Título de la receta
   svgContent += `
-    <text x="${padding}" y="${yPosition}" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#2C3E50">
+    <text x="${padding}" y="${yPosition}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="48" font-weight="bold" fill="#2C3E50">
       ${escapeXml(recipe.recipeName)}
     </text>
   `;
@@ -157,7 +157,7 @@ function generateRecipeTextSVG(recipe: RecipeComposition, width: number): string
   // Ingredientes
   if (recipe.ingredients.length > 0) {
     svgContent += `
-      <text x="${padding}" y="${yPosition}" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#34495E">
+      <text x="${padding}" y="${yPosition}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="36" font-weight="bold" fill="#34495E">
         Ingredientes:
       </text>
     `;
@@ -168,7 +168,7 @@ function generateRecipeTextSVG(recipe: RecipeComposition, width: number): string
       const wrappedLines = wrapText(ingredient, 50);
       for (let i = 0; i < wrappedLines.length; i++) {
         svgContent += `
-          <text x="${padding + 20}" y="${yPosition}" font-family="Arial, sans-serif" font-size="28" fill="#555">
+          <text x="${padding + 20}" y="${yPosition}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="28" fill="#555">
             ${i === 0 ? "• " : "  "}${escapeXml(wrappedLines[i])}
           </text>
         `;
@@ -181,7 +181,7 @@ function generateRecipeTextSVG(recipe: RecipeComposition, width: number): string
   // Instrucciones
   if (recipe.instructions.length > 0) {
     svgContent += `
-      <text x="${padding}" y="${yPosition}" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#34495E">
+      <text x="${padding}" y="${yPosition}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="36" font-weight="bold" fill="#34495E">
         Preparación:
       </text>
     `;
@@ -193,7 +193,7 @@ function generateRecipeTextSVG(recipe: RecipeComposition, width: number): string
       
       for (let j = 0; j < wrappedLines.length; j++) {
         svgContent += `
-          <text x="${padding + 20}" y="${yPosition}" font-family="Arial, sans-serif" font-size="28" fill="#555">
+          <text x="${padding + 20}" y="${yPosition}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="28" fill="#555">
             ${j === 0 ? `${i + 1}. ` : "   "}${escapeXml(wrappedLines[j])}
           </text>
         `;
