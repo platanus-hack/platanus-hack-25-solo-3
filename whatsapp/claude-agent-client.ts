@@ -1,7 +1,7 @@
 // Cliente usando Claude Agent SDK oficial con arquitectura Multi-Agente
 import { query, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import { ANTHROPIC_API_KEY } from "./secrets.js";
-import { db } from "./db.js";
+import { ANTHROPIC_API_KEY } from "./secrets";
+import { db } from "./db";
 import {
   sendWhatsAppMessageTool,
   getUserContextTool,
@@ -9,8 +9,8 @@ import {
   addHouseholdMembersTool,
   saveConversationStateTool,
   sendReactionTool,
-} from "./tools/index.js";
-import { PLANEAT_AGENTS, routerPrompt } from "./agents/index.js";
+} from "./tools";
+import { PLANEAT_AGENTS, routerPrompt } from "./agents";
 
 // Asegurar que el PATH incluya node para que el Agent SDK funcione
 if (!process.env.PATH?.includes("/usr/local/bin")) {
