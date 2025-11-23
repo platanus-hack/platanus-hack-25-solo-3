@@ -172,6 +172,7 @@ DATABASE_URL=postgresql://planeat_admin:MiPassword123@planeat-db.abc123xyz.us-ea
 ```
 
 **Componentes del URL:**
+
 - `username`: Tu usuario master de RDS
 - `password`: Tu contraseña master
 - `your-rds-endpoint`: El endpoint de tu instancia RDS (lo encuentras en AWS Console)
@@ -190,6 +191,7 @@ psql "postgresql://username:password@your-rds-endpoint.rds.amazonaws.com:5432/pl
 ```
 
 Si la conexión falla, verifica:
+
 - ✅ Security Group de RDS permite puerto 5432 desde la IP de tu servidor
 - ✅ RDS tiene "Publicly accessible" en Yes (o está en la misma VPC que tu servidor)
 - ✅ Usuario y password son correctos
