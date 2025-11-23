@@ -10,6 +10,12 @@ import {
   saveConversationStateTool,
   sendReactionTool,
   generateRecipeImageTool,
+  frestBuscarUsuarioTool,
+  frestRegistrarUsuarioTool,
+  frestCrearDireccionTool,
+  frestConsultarProductosTool,
+  frestCrearPedidoTool,
+  frestConsultarEstadoPedidoTool,
 } from "./tools";
 import { PLANEAT_AGENTS, routerPrompt } from "./agents";
 
@@ -18,14 +24,12 @@ if (!process.env.PATH?.includes("/usr/local/bin")) {
   process.env.PATH = `${process.env.PATH}:/usr/local/bin:/usr/bin:/bin`;
 }
 
-// Crear el servidor MCP con las tools
-// NOTA: Las tools de Frest (frest_*) solo están disponibles en claude-client.ts (API directa)
-// porque USE_AGENT_SDK está en false. Si se activa el SDK, habría que migrar las tools de Frest
-// al formato del SDK (con inputSchema y handler).
+// Crear el servidor MCP con todas las tools (incluidas las de Frest)
 const planeatServer = createSdkMcpServer({
   name: "planeat",
   version: "1.0.0",
   tools: [
+    // Herramientas básicas de PlanEat
     sendWhatsAppMessageTool,
     getUserContextTool,
     createHouseholdTool,
@@ -33,6 +37,13 @@ const planeatServer = createSdkMcpServer({
     saveConversationStateTool,
     sendReactionTool,
     generateRecipeImageTool,
+    // Herramientas de Frest E-commerce
+    frestBuscarUsuarioTool,
+    frestRegistrarUsuarioTool,
+    frestCrearDireccionTool,
+    frestConsultarProductosTool,
+    frestCrearPedidoTool,
+    frestConsultarEstadoPedidoTool,
   ],
 });
 
@@ -120,22 +131,27 @@ export async function processWithAgentSDK(
     // Configurar API key
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY();
 
-    // Configuración Multi-Agente según documentación oficial
-    const maxTurns = 15;
-    const timeoutMs = 40000; // 40 segundos
+    // Configuración Multi-Agente optimizada
+    const maxTurns = 10; // Reducido de 15 a 10 para mejor rendimiento
+    const timeoutMs = 60000; // Aumentado a 60 segundos
     
     console.log("🎯 Multi-Agent Configuration:");
+    console.log(`   Router Model: claude-haiku-4-5-20251001 (fast routing)`);
     console.log(`   Subagents: ${Object.keys(PLANEAT_AGENTS).join(", ")}`);
-    console.log(`   Max Turns: ${maxTurns} | Timeout: ${timeoutMs/1000}s`);
+    console.log(`   Max Turns: ${maxTurns}`);
+    console.log(`   Timeout: ${timeoutMs/1000}s`);
     console.log(`   Session: ${existingSessionId || "New"}`);
 
     const queryOptions: any = {
       systemPrompt: routerPrompt,
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-haiku-4-5-20251001", // Haiku para routing rápido y económico
       maxTurns,
       agents: PLANEAT_AGENTS, // Multi-agent architecture
       mcpServers: { planeat: planeatServer },
       permissionMode: "bypassPermissions",
+      // Optimizaciones de rendimiento
+      includePartialMessages: false, // No incluir mensajes parciales
+      settingSources: [], // No cargar settings del filesystem para mayor velocidad
     };
 
     // Reanudar sesión si existe

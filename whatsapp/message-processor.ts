@@ -5,8 +5,8 @@ import { processWithClaude } from "./claude-client";
 import { markMessageAsRead } from "./whatsapp-client";
 
 // Flag para cambiar entre Agent SDK y API directa
-// TEMPORALMENTE DESACTIVADO - SDK tarda 130s (demasiado lento)
-const USE_AGENT_SDK = false;
+// SDK RE-IMPLEMENTADO con mejores prácticas y herramientas Frest migradas
+const USE_AGENT_SDK = true;
 
 // Cache para deduplicar mensajes (en memoria, 5 minutos TTL)
 const processedMessages = new Map<string, number>();
